@@ -231,7 +231,7 @@ function buildCats(){
       sr.className='row'+(state.sub===s?' selected':'');
       sr.style.paddingLeft='36px';
       sr.innerHTML=`<div class="label">${s}</div><div class="count">${sc}题</div><div class="arrow">›</div>`;
-      sr.onclick=()=>{state.sub=state.sub===s?'':s;buildCats();};
+      sr.onclick=()=>{state.cat=c;state.sub=state.sub===s?'':s;buildCats();};
       el.appendChild(sr);
     });
   });
