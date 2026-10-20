@@ -41,6 +41,9 @@ body{
 .home{padding:16px;}
 .section{margin-bottom:20px;}
 .section-title{font-size:13px;color:var(--sub);padding:0 4px 8px;text-transform:uppercase;letter-spacing:.5px;}
+.sel-bar{display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;}
+.sel-bar .cnt{font-size:13px;color:var(--sub);}
+.sel-bar .tgl{font-size:14px;color:var(--blue);background:none;border:none;padding:4px 8px;}
 .card{background:var(--card);border-radius:12px;overflow:hidden;}
 .row{display:flex;align-items:center;padding:14px 16px;border-bottom:.5px solid var(--line);cursor:pointer;}
 .row:last-child{border-bottom:none;}
@@ -118,7 +121,11 @@ body{
     <div class="header"><h1>通导理论题库</h1></div>
     <div class="home">
       <div class="section">
-        <div class="section-title">选择题库</div>
+        <div class="section-title">选择题库（可多选）</div>
+        <div class="sel-bar">
+          <span class="cnt" id="selCount">已选 0 个题库</span>
+          <button class="tgl" id="btnSelectAll">全选</button>
+        </div>
         <div class="card" id="catList"></div>
       </div>
       <div class="section">
@@ -204,14 +211,24 @@ const STORE = {
   set(k,v){localStorage.setItem(k,JSON.stringify(v))},
 };
 let state = {
-  cat:'公共知识', sub:'', type:'', diff:'',
+  subs:new Set(), type:'', diff:'',
   list:[], idx:0, mode:'order', answered:{}, wrongs:STORE.get('wrongs',{}),
   favs:STORE.get('favs',{}), examWrongs:[],
 };
+function subKey(c,s){return c+'|'+s;}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('app').scrollTop=0;}
 
 // build category list
+function allSubKeys(){
+  const cats={};
+  QUESTIONS.forEach(([c,s])=>{cats[c]=cats[c]||new Set();cats[c].add(s);});
+  const keys=[];
+  Object.keys(cats).forEach(c=>cats[c].forEach(s=>keys.push(subKey(c,s))));
+  return keys;
+}
+
 function buildCats(){
   const cats={};
   QUESTIONS.forEach(([c,s])=>{cats[c]=cats[c]||new Set();cats[c].add(s);});
@@ -220,26 +237,37 @@ function buildCats(){
   Object.keys(cats).forEach(c=>{
     const subs=[...cats[c]];
     const cnt=QUESTIONS.filter(q=>q[0]===c).length;
+    const subsSel=subs.filter(s=>state.subs.has(subKey(c,s))).length;
     const row=document.createElement('div');
-    row.className='row'+(state.cat===c?' selected':'');
+    row.className='row'+(subsSel===subs.length?' selected':'');
     row.innerHTML=`<div class="label">${c}</div><div class="count">${cnt}题</div><div class="arrow">›</div>`;
-    row.onclick=()=>{state.cat=c;state.sub='';buildCats();};
+    row.onclick=()=>{
+      const allSel=subs.every(s=>state.subs.has(subKey(c,s)));
+      subs.forEach(s=>{const k=subKey(c,s);if(allSel)state.subs.delete(k);else state.subs.add(k);});
+      buildCats();
+    };
     el.appendChild(row);
     subs.forEach(s=>{
       const sc=QUESTIONS.filter(q=>q[0]===c&&q[1]===s).length;
+      const k=subKey(c,s);
+      const selected=state.subs.has(k);
       const sr=document.createElement('div');
-      sr.className='row'+(state.cat===c&&state.sub===s?' selected':'');
+      sr.className='row'+(selected?' selected':'');
       sr.style.paddingLeft='36px';
-      sr.innerHTML=`<div class="label">${s}</div><div class="count">${sc}题</div><div class="arrow">›</div>`;
+      sr.innerHTML=`<div class="label">${s}</div><div class="count">${sc}题</div><div class="arrow">${selected?'✓':''}</div>`;
       sr.onclick=()=>{
-        const wasSelected=(state.cat===c&&state.sub===s);
-        state.cat=c;
-        state.sub=wasSelected?'':s;
+        if(selected)state.subs.delete(k);else state.subs.add(k);
         buildCats();
       };
       el.appendChild(sr);
     });
   });
+  // summary
+  const allKeys=allSubKeys();
+  const selCnt=state.subs.size;
+  const allSel=selCnt===allKeys.length;
+  document.getElementById('selCount').textContent=`已选 ${selCnt}/${allKeys.length} 个题库 · ${filteredList().length} 题`;
+  document.getElementById('btnSelectAll').textContent=allSel?'全不选':'全选';
   document.getElementById('wrongCnt').textContent=`(${Object.keys(state.wrongs).length})`;
   const ec=Math.min(100, filteredList().length);
   document.getElementById('examCnt').textContent=`(${ec}题)`;
@@ -247,7 +275,7 @@ function buildCats(){
 
 function filteredList(){
   return QUESTIONS.filter(([c,s,t,d])=>
-    c===state.cat && (!state.sub||s===state.sub) && (!state.type||t===state.type) && (!state.diff||d===state.diff)
+    state.subs.has(subKey(c,s)) && (!state.type||t===state.type) && (!state.diff||d===state.diff)
   );
 }
 
@@ -269,10 +297,10 @@ function start(mode){
   state.answered={};
   state.examWrongs=[];
   if(mode==='random'){
-    state.list=[...list].sort(()=>Math.random()-0.5);
+    state.list=shuffle(list);
   } else if(mode==='exam'){
     const n=Math.min(100,list.length);
-    state.list=[...list].sort(()=>Math.random()-0.5).slice(0,n);
+    state.list=shuffle(list).slice(0,n);
   } else if(mode==='wrong'){
     const wkeys=Object.keys(state.wrongs);
     state.list=QUESTIONS.filter((_,i)=>wkeys.includes(String(i)));
@@ -412,9 +440,17 @@ function showStats(){
 }
 
 // init
+allSubKeys().forEach(k=>state.subs.add(k));
 buildCats();
 chipGroup('typeGroup','type');
 chipGroup('diffGroup','diff');
+document.getElementById('btnSelectAll').onclick=()=>{
+  const allKeys=allSubKeys();
+  const allSel=allKeys.every(k=>state.subs.has(k));
+  state.subs=new Set();
+  if(!allSel)allKeys.forEach(k=>state.subs.add(k));
+  buildCats();
+};
 
 // register service worker
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
