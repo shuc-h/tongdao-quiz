@@ -67,8 +67,12 @@ body{
 .btn:disabled{opacity:.4;}
 /* Quiz */
 .quiz-wrap{padding:16px;}
-.progress-bar{height:4px;background:var(--line);border-radius:2px;margin-bottom:16px;overflow:hidden;}
+.progress-bar{height:4px;background:var(--line);border-radius:2px;margin-bottom:12px;overflow:hidden;}
 .progress-bar .fill{height:100%;background:var(--blue);transition:width .25s;}
+.jump{display:flex;align-items:center;gap:6px;margin-bottom:10px;}
+.jump .lbl{font-size:13px;color:var(--sub);}
+.jump input{width:70px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center;background:var(--card);}
+.jump-btn{padding:8px 14px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-size:14px;}
 .meta{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .tag{font-size:12px;padding:3px 8px;border-radius:6px;background:#e9e9ed;color:var(--sub);}
 .tag.diff-易{background:#d4f5d4;color:#248a3d;}
@@ -169,6 +173,12 @@ body{
     </div>
     <div class="quiz-wrap">
       <div class="progress-bar"><div class="fill" id="qFill"></div></div>
+      <div class="jump">
+        <span class="lbl">跳到第</span>
+        <input type="number" id="qJump" min="1" inputmode="numeric" placeholder="题号">
+        <span class="lbl">题</span>
+        <button class="jump-btn" id="qJumpGo">跳转</button>
+      </div>
       <div class="meta" id="qMeta"></div>
       <div class="question" id="qText"></div>
       <div class="options" id="qOpts"></div>
@@ -387,6 +397,16 @@ document.getElementById('qNext').onclick=()=>{
   else if(state.mode==='exam'){finishExam();}
 };
 document.getElementById('qPrev').onclick=()=>{if(state.idx>0){state.idx--;renderQ();}};
+function jumpTo(){
+  const n=parseInt(document.getElementById('qJump').value,10);
+  const total=state.list.length;
+  if(!n||n<1||n>total){alert(`请输入 1~${total} 之间的题号`);return;}
+  state.idx=n-1;
+  document.getElementById('qJump').value='';
+  renderQ();
+}
+document.getElementById('qJumpGo').onclick=jumpTo;
+document.getElementById('qJump').addEventListener('keydown',e=>{if(e.key==='Enter')jumpTo();});
 document.getElementById('qBack').onclick=()=>{
   if(state.mode==='exam'){if(confirm('确定交卷吗？'))finishExam();}
   else show('home');
